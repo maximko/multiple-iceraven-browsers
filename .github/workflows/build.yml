@@ -1,0 +1,79 @@
+name: Build IceRaven APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: Upstream tag, branch, commit, or latest-release
+        required: true
+        default: latest-release
+      variants:
+        description: Comma-separated variant ids, or all
+        required: true
+        default: all
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout orchestration repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build APK variants
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xms512m -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dev/stderr" -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false -Dorg.gradle.daemon=false
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          python3 scripts/build-variants.py \
+            --ref "${{ inputs.upstream_ref }}" \
+            --variants "${{ inputs.variants }}" 2>&1 | tee logs/build.log
+
+      - name: Read build metadata
+        id: metadata
+        run: cat artifacts/build-metadata.env >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iceraven-apks
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.release_tag }}
+          name: ${{ steps.metadata.outputs.release_name }}
+          body: |
+            Upstream IceRaven: ${{ steps.metadata.outputs.upstream_ref }}
+
+            APKs are debug-signed and built for arm64-v8a.
+          files: artifacts/*.apk
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          make_latest: false
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-debug
+          path: |
+            logs/*.log
+            .work/iceraven-browser/build/reports/**
+            .work/iceraven-browser/app/build/reports/**
+          if-no-files-found: ignore
+          retention-days: 7

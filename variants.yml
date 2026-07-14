@@ -1,0 +1,27 @@
+upstream:
+  repo: https://github.com/fork-maintainers/iceraven-browser.git
+  releaseApi: https://api.github.com/repos/fork-maintainers/iceraven-browser/releases/latest
+  ref: latest-release
+
+android:
+  abi: arm64-v8a
+  fallbackMozillaVersion: "0.0"
+
+build:
+  taskPattern: "app:assemble{Variant}ForkRelease"
+  outputGlob: "**/outputs/apk/**/*.apk"
+  signDebug: true
+
+variants:
+  - id: media
+    appName: Media
+    applicationId: org.example.media
+  - id: banking
+    appName: Banking
+    applicationId: org.example.banking
+  - id: extra1
+    appName: Extra 1
+    applicationId: org.example.extra1
+  - id: extra2
+    appName: Extra 2
+    applicationId: org.example.extra2

@@ -1,0 +1,134 @@
+name: Daily upstream IceRaven check
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: Build even if the latest tag was already recorded
+        required: true
+        type: boolean
+        default: false
+      variants:
+        description: Comma-separated variant ids, or all
+        required: true
+        default: all
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.upstream.outputs.latest_tag }}
+      should_build: ${{ steps.upstream.outputs.should_build }}
+
+    steps:
+      - name: Checkout orchestration repo
+        uses: actions/checkout@v4
+
+      - name: Restore build state
+        run: |
+          mkdir -p state
+          if git ls-remote --exit-code --heads origin state >/dev/null 2>&1; then
+            git fetch --depth=1 origin state
+            git show origin/state:latest-upstream-tag.txt > state/latest-upstream-tag.txt || true
+          fi
+
+      - name: Check latest upstream release
+        id: upstream
+        run: |
+          FORCE=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            FORCE="--force"
+          fi
+          python3 scripts/check-upstream.py $FORCE
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout orchestration repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build APK variants
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xms512m -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dev/stderr" -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false -Dorg.gradle.daemon=false
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          VARIANTS="all"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VARIANTS="${{ inputs.variants }}"
+          fi
+          python3 scripts/build-variants.py \
+            --ref "${{ needs.check.outputs.latest_tag }}" \
+            --variants "$VARIANTS" 2>&1 | tee logs/build.log
+
+      - name: Read build metadata
+        id: metadata
+        run: cat artifacts/build-metadata.env >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iceraven-${{ needs.check.outputs.latest_tag }}-apks
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.release_tag }}
+          name: ${{ steps.metadata.outputs.release_name }}
+          body: |
+            Upstream IceRaven: ${{ steps.metadata.outputs.upstream_ref }}
+
+            APKs are debug-signed and built for arm64-v8a.
+          files: artifacts/*.apk
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          make_latest: false
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-debug-${{ needs.check.outputs.latest_tag }}
+          path: |
+            logs/*.log
+            .work/iceraven-browser/build/reports/**
+            .work/iceraven-browser/app/build/reports/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Record built upstream tag
+        run: |
+          tmpdir="$(mktemp -d)"
+          git init --initial-branch=state "$tmpdir"
+          cd "$tmpdir"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          if git ls-remote --exit-code --heads origin state >/dev/null 2>&1; then
+            git fetch --depth=1 origin state
+            git checkout state
+          else
+            git checkout --orphan state
+          fi
+          printf '%s\n' "${{ needs.check.outputs.latest_tag }}" > latest-upstream-tag.txt
+          git add latest-upstream-tag.txt
+          git diff --cached --quiet || git commit -m "Record built IceRaven ${{ needs.check.outputs.latest_tag }}"
+          git push origin state
