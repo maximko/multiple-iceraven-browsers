@@ -13,9 +13,9 @@ build:
   signDebug: true
 
 variants:
-  - id: media
-    appName: Media
-    applicationId: org.example.media
+  - id: direct
+    appName: Direct
+    applicationId: org.example.direct
   - id: banking
     appName: Banking
     applicationId: org.example.banking
