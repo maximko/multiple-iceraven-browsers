@@ -115,13 +115,15 @@ jobs:
           retention-days: 7
 
       - name: Record built upstream tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           tmpdir="$(mktemp -d)"
           git init --initial-branch=state "$tmpdir"
           cd "$tmpdir"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           if git ls-remote --exit-code --heads origin state >/dev/null 2>&1; then
             git fetch --depth=1 origin state
             git checkout state
