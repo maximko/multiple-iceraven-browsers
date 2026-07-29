@@ -7,26 +7,10 @@ import argparse
 import json
 import os
 import sys
-import urllib.request
 from pathlib import Path
 
 from read_config import read_config
-
-
-def latest_release_tag(api_url: str) -> str:
-    request = urllib.request.Request(
-        api_url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "iceraven-builds",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-    tag = payload.get("tag_name")
-    if not tag:
-        raise RuntimeError(f"release response from {api_url} did not contain tag_name")
-    return tag
+from release_metadata import latest_release_tag
 
 
 def write_github_output(values: dict[str, str]) -> None:

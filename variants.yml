@@ -10,7 +10,6 @@ android:
 build:
   taskPattern: "app:assemble{Variant}ForkRelease"
   outputGlob: "**/outputs/apk/**/*.apk"
-  signDebug: true
 
 variants:
   - id: direct

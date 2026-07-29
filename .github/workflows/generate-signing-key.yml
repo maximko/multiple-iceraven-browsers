@@ -1,0 +1,71 @@
+name: Generate Android signing key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up JDK
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Generate signing key
+        env:
+          ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$ANDROID_SIGNING_KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_SIGNING_KEYSTORE_BASE64 already exists. Refusing to replace the signing key."
+            exit 1
+          fi
+          if [ "${#ANDROID_SIGNING_PASSWORD}" -lt 32 ]; then
+            echo "::error::Create ANDROID_SIGNING_PASSWORD as a repository secret with at least 32 random characters first."
+            exit 1
+          fi
+
+          umask 077
+          mkdir -p signing-key
+          keytool -genkeypair \
+            -storetype PKCS12 \
+            -keystore signing-key/iceraven-signing.p12 \
+            -storepass:env ANDROID_SIGNING_PASSWORD \
+            -keypass:env ANDROID_SIGNING_PASSWORD \
+            -alias iceraven \
+            -keyalg RSA \
+            -keysize 3072 \
+            -validity 10000 \
+            -dname "CN=IceRaven Custom Builds,O=IceRaven Builds,C=US"
+
+          base64 --wrap=0 signing-key/iceraven-signing.p12 \
+            > signing-key/iceraven-signing.p12.base64
+          keytool -list -v \
+            -keystore signing-key/iceraven-signing.p12 \
+            -storepass:env ANDROID_SIGNING_PASSWORD \
+            -alias iceraven \
+            > signing-key/certificate-details.txt
+
+          {
+            echo "## Signing key generated"
+            echo
+            echo "Download the **iceraven-signing-key** artifact now. Follow the README to back it up and create the ANDROID_SIGNING_KEYSTORE_BASE64 secret."
+            echo
+            echo "This artifact expires after one day. Running this workflow again creates a different key until the keystore secret is configured."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload signing key
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: iceraven-signing-key
+          path: signing-key/
+          if-no-files-found: error
+          retention-days: 1

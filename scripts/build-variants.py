@@ -12,10 +12,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import urllib.request
 from pathlib import Path
 
 from read_config import read_config
+from release_metadata import resolve_upstream_ref, safe_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,22 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 def run(command: list[str], cwd: Path | None = None) -> None:
     print("+", " ".join(command), flush=True)
     subprocess.run(command, cwd=cwd, check=True)
-
-
-def latest_release_tag(api_url: str) -> str:
-    request = urllib.request.Request(
-        api_url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "iceraven-builds",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-    tag = payload.get("tag_name")
-    if not tag:
-        raise RuntimeError(f"release response from {api_url} did not contain tag_name")
-    return tag
 
 
 def selected_variants(config: dict, names: str) -> list[dict]:
@@ -286,77 +270,6 @@ allprojects {{
     )
 
 
-def safe_name(value: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-")
-    return cleaned or "variant"
-
-
-def find_android_tool(name: str) -> Path:
-    sdk_roots = [
-        os.environ.get("ANDROID_HOME"),
-        os.environ.get("ANDROID_SDK_ROOT"),
-        "/usr/local/lib/android/sdk",
-        "/opt/android-sdk",
-    ]
-    candidates: list[Path] = []
-    for root in sdk_roots:
-        if not root:
-            continue
-        candidates.extend(Path(root).glob(f"build-tools/*/{name}"))
-    if not candidates:
-        raise RuntimeError(f"could not find Android SDK tool: {name}")
-    return sorted(candidates)[-1]
-
-
-def ensure_debug_keystore(path: Path) -> None:
-    if path.exists():
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    run(
-        [
-            "keytool",
-            "-genkeypair",
-            "-storetype",
-            "JKS",
-            "-keystore",
-            str(path),
-            "-storepass",
-            "android",
-            "-alias",
-            "androiddebugkey",
-            "-keypass",
-            "android",
-            "-keyalg",
-            "RSA",
-            "-keysize",
-            "2048",
-            "-validity",
-            "10000",
-            "-dname",
-            "CN=Android Debug,O=Android,C=US",
-        ]
-    )
-
-
-def sign_debug_apk(apk: Path, keystore: Path) -> None:
-    apksigner = find_android_tool("apksigner")
-    run(
-        [
-            str(apksigner),
-            "sign",
-            "--ks",
-            str(keystore),
-            "--ks-pass",
-            "pass:android",
-            "--ks-key-alias",
-            "androiddebugkey",
-            "--key-pass",
-            "pass:android",
-            str(apk),
-        ]
-    )
-
-
 def collect_outputs(source_dir: Path, output_glob: str, artifact_dir: Path, variants: list[dict], ref: str, abi: str) -> list[Path]:
     all_apks = [path for path in source_dir.glob(output_glob) if path.is_file() and path.suffix == ".apk"]
     candidates = [
@@ -388,22 +301,6 @@ def collect_outputs(source_dir: Path, output_glob: str, artifact_dir: Path, vari
     return copied
 
 
-def write_build_metadata(artifact_dir: Path, ref: str) -> None:
-    display_version = ref.removeprefix("iceraven-")
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    (artifact_dir / "build-metadata.env").write_text(
-        "\n".join(
-            [
-                f"upstream_ref={ref}",
-                f"release_tag=iceraven-variants-{safe_name(ref)}",
-                f"release_name=IceRaven {display_version}",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=str(ROOT / "variants.yml"))
@@ -416,8 +313,7 @@ def main() -> int:
     config = read_config(Path(args.config))
     upstream = config["upstream"]
     ref = args.ref or upstream.get("ref", "latest-release")
-    if ref == "latest-release":
-        ref = latest_release_tag(upstream["releaseApi"])
+    ref = resolve_upstream_ref(ref, upstream["releaseApi"])
 
     variants = selected_variants(config, args.variants)
     for variant in variants:
@@ -426,14 +322,9 @@ def main() -> int:
     artifact_dir = Path(args.artifacts_dir)
     abi = config["android"]["abi"]
     fallback_mozilla_version = config["android"].get("fallbackMozillaVersion", "0.0")
-    sign_debug = config["build"].get("signDebug", "false").lower() == "true"
-    debug_keystore = ROOT / ".work" / "debug.keystore"
-
     ensure_upstream(upstream["repo"], ref, source_dir)
     install_android_sdk_pieces(source_dir)
     ensure_mobile_android_version_file(source_dir, ref, fallback_mozilla_version)
-    if sign_debug:
-        ensure_debug_keystore(debug_keystore)
 
     print(f"Building {', '.join(variant['id'] for variant in variants)} for {ref}", flush=True)
     clean_upstream_checkout(ref, source_dir)
@@ -462,10 +353,6 @@ def main() -> int:
         )
 
     built = collect_outputs(source_dir, config["build"]["outputGlob"], artifact_dir, variants, ref, abi)
-    if sign_debug:
-        for output in built:
-            sign_debug_apk(output, debug_keystore)
-    write_build_metadata(artifact_dir, ref)
 
     print("Built APK artifacts:")
     for path in built:
