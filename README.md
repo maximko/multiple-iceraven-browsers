@@ -9,7 +9,9 @@
 
 Build multiple IceRaven Browser APKs with different package ids and app names to simulate Firefox profiles on Android.
 
-<a href="https://github.com/maximko/multiple-iceraven-browsers/releases/latest/download/obtainium.json"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="54"></a>
+<p align="center">
+  <a href="https://github.com/maximko/multiple-iceraven-browsers/releases/latest/download/obtainium.json"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="54"></a>
+</p>
 
 <p align="center">
   <a href="https://github.com/maximko/multiple-iceraven-browsers/actions/workflows/daily-upstream-check.yml"><img src="https://github.com/maximko/multiple-iceraven-browsers/actions/workflows/daily-upstream-check.yml/badge.svg" alt="Daily upstream IceRaven check"></a>
