@@ -52,7 +52,12 @@ runner. You only need a browser:
    Actions → New repository secret**.
 2. Create `ANDROID_SIGNING_PASSWORD` with a unique, randomly generated password
    of at least 32 characters. Do not use words or a reused password. Save it in
-   a password manager too.
+   a password manager too. For example, this command generates exactly 32
+   random characters without Java:
+
+   ```sh
+   openssl rand -base64 24
+   ```
 3. Open **Actions → Generate Android signing key → Run workflow**.
 4. When it finishes, download the `iceraven-signing-key` artifact. It expires
    after one day.
