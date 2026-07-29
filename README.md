@@ -132,7 +132,7 @@ GitHub Release named like `IceRaven 2.45.0`.
 
 ## Daily upstream check
 
-The `Daily upstream IceRaven check` workflow runs every day at 03:00 UTC. It
+The `Daily upstream IceRaven check` workflow runs every day at 13:00 UTC. It
 checks the latest IceRaven release tag and builds only when the tag differs from
 `latest-upstream-tag.txt` stored on the separate `state` branch.
 

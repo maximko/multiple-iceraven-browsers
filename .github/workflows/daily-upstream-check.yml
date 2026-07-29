@@ -2,7 +2,7 @@ name: Daily upstream IceRaven check
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 13 * * *"
   workflow_dispatch:
     inputs:
       force_rebuild:
