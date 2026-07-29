@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 from read_config import read_config
-from release_metadata import resolve_upstream_ref, safe_name
+from release_metadata import resolve_upstream_ref, safe_name, version_name_for_ref
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -346,7 +346,7 @@ def main() -> int:
                 "--init-script",
                 str(init_script),
                 *[variant_task_name(variant) for variant in variants],
-                f"-PversionName={ref}",
+                f"-PversionName={version_name_for_ref(ref)}",
                 *lint_vital_exclusions(variants),
             ],
             cwd=source_dir,

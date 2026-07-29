@@ -9,6 +9,8 @@
 
 Build multiple IceRaven Browser APKs with different package ids and app names to simulate Firefox profiles on Android.
 
+<a href="https://github.com/maximko/multiple-iceraven-browsers/releases/latest/download/obtainium.json"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="54"></a>
+
 <p align="center">
   <a href="https://github.com/maximko/multiple-iceraven-browsers/actions/workflows/daily-upstream-check.yml"><img src="https://github.com/maximko/multiple-iceraven-browsers/actions/workflows/daily-upstream-check.yml/badge.svg" alt="Daily upstream IceRaven check"></a>
 </p>
@@ -33,6 +35,34 @@ in one Gradle invocation.
 
 The upstream `forkRelease` build type still appends IceRaven's package suffix,
 so `org.iceraven.personal` becomes `org.iceraven.personal.iceraven`.
+
+## Obtainium updates
+
+Every new GitHub Release includes `obtainium.json`, generated from `variants.yml`.
+It contains one entry per variant, using the variant's real Android package id
+and an APK filename filter. This lets Obtainium select the matching APK instead
+of asking which variant to download on every update.
+
+Import it once:
+
+1. Use the badge above to download `obtainium.json` from the latest release, or
+   download it from any individual GitHub Release.
+2. Open Obtainium's **Import/Export** page and import the downloaded file.
+3. Keep the variants you use and delete any unwanted entries.
+4. Run one update check so Obtainium loads the current release details.
+
+You do not need to import the file again for later releases. Obtainium cannot
+discover a configuration file merely because it is attached to a release; the
+first download and import is manual. If the repository was already added to
+Obtainium without a variant filter, remove that old entry before importing to
+avoid a duplicate unfiltered entry.
+
+The file removes the APK selection prompt. Fully unattended installation still
+depends on Obtainium's installation method and Android permissions.
+
+The import always lists every variant in `variants.yml`, including when a
+manual workflow builds only a subset. Publish `all` variants at least once so
+each imported entry has a release APK available.
 
 ## Android signing key
 
@@ -95,8 +125,8 @@ Inputs:
 - `upstream_ref`: use `latest-release`, a tag, branch, or commit.
 - `variants`: use `all` or a comma-separated list like `personal,work`.
 
-Successful builds upload APK artifacts and publish them to one GitHub Release
-named like `IceRaven 2.45.0`.
+Successful builds upload the APKs and `obtainium.json`, then publish them to one
+GitHub Release named like `IceRaven 2.45.0`.
 
 ## Daily upstream check
 

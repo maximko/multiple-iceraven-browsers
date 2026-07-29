@@ -14,6 +14,9 @@ from pathlib import Path
 from read_config import read_config
 
 
+RELEASE_TAG_PREFIX = "iceraven-variants-"
+
+
 def latest_release_tag(api_url: str) -> str:
     request = urllib.request.Request(
         api_url,
@@ -46,11 +49,16 @@ def safe_name(value: str) -> str:
     return cleaned or "variant"
 
 
+def version_name_for_ref(ref: str) -> str:
+    return safe_name(validate_ref(ref))
+
+
 def metadata_for_ref(ref: str) -> dict[str, str]:
     ref = validate_ref(ref)
+    version_name = version_name_for_ref(ref)
     return {
         "upstream_ref": ref,
-        "release_tag": f"iceraven-variants-{safe_name(ref)}",
+        "release_tag": f"{RELEASE_TAG_PREFIX}{version_name}",
         "release_name": f"IceRaven {ref.removeprefix('iceraven-')}",
     }
 

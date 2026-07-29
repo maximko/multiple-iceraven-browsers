@@ -39,6 +39,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual(metadata["upstream_ref"], "feature/test")
         self.assertEqual(metadata["release_tag"], "iceraven-variants-feature-test")
         self.assertEqual(metadata["release_name"], "IceRaven feature/test")
+        self.assertEqual(release_metadata.version_name_for_ref("feature/test"), "feature-test")
 
 
 if __name__ == "__main__":
