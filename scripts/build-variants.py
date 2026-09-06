@@ -90,6 +90,17 @@ def patch_android_components(source_dir: Path) -> None:
         run(["bash", str(script)], cwd=source_dir)
 
 
+def setup_python_environment(source_dir: Path) -> None:
+    script = source_dir / "automation" / "iceraven" / "setup_venv.sh"
+    if not script.is_file():
+        return
+
+    run(["bash", str(script)], cwd=source_dir)
+    python = source_dir / "venv" / "bin" / "python"
+    if not python.is_file():
+        raise RuntimeError(f"upstream Python environment was not created: {python}")
+
+
 def replace_text(path: Path, replacements: list[tuple[str, str]]) -> None:
     text = path.read_text(encoding="utf-8")
     updated = text
@@ -331,6 +342,7 @@ def main() -> int:
     ensure_parent_gradle_layout(source_dir)
     ensure_mobile_android_version_file(source_dir, ref, fallback_mozilla_version)
     patch_android_components(source_dir)
+    setup_python_environment(source_dir)
     apply_release_string_fixes(source_dir)
     write_variant_app_names(source_dir, variants)
     with tempfile.TemporaryDirectory(prefix="iceraven-gradle-") as temp_dir:
