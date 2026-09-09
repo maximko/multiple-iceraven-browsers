@@ -17,6 +17,24 @@ build_variants = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(build_variants)
 
 
+class GradleResourceTests(unittest.TestCase):
+    def test_build_uses_one_worker(self) -> None:
+        self.assertEqual(build_variants.GRADLE_MAX_WORKERS, 1)
+
+    def test_workflows_provide_enough_heap_for_packaging(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        workflow_paths = [
+            root / ".github" / "workflows" / "build.yml",
+            root / ".github" / "workflows" / "daily-upstream-check.yml",
+        ]
+
+        for path in workflow_paths:
+            with self.subTest(workflow=path.name):
+                workflow = path.read_text(encoding="utf-8")
+                self.assertIn("-Xmx7g", workflow)
+                self.assertIn("-Dorg.gradle.workers.max=1", workflow)
+
+
 class PythonEnvironmentTests(unittest.TestCase):
     def test_missing_upstream_setup_script_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

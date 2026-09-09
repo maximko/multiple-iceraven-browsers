@@ -19,6 +19,7 @@ from release_metadata import resolve_upstream_ref, safe_name, version_name_for_r
 
 
 ROOT = Path(__file__).resolve().parents[1]
+GRADLE_MAX_WORKERS = 1
 
 
 def run(command: list[str], cwd: Path | None = None) -> None:
@@ -353,7 +354,7 @@ def main() -> int:
                 "./gradlew",
                 "--no-daemon",
                 "--max-workers",
-                "2",
+                str(GRADLE_MAX_WORKERS),
                 "--stacktrace",
                 "--init-script",
                 str(init_script),

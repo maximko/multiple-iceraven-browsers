@@ -78,7 +78,7 @@ jobs:
       - name: Build APK variants
         env:
           EVENT_NAME: ${{ github.event_name }}
-          GRADLE_OPTS: -Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xms512m -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dev/stderr" -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false -Dorg.gradle.daemon=false
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xms512m -Xmx7g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dev/stderr" -Dorg.gradle.workers.max=1 -Dorg.gradle.parallel=false -Dorg.gradle.daemon=false
           REQUESTED_VARIANTS: ${{ inputs.variants }}
           UPSTREAM_REF: ${{ steps.metadata.outputs.upstream_ref }}
         run: |
