@@ -1,1 +1,1 @@
-iceraven-2.47.0
+iceraven-2.48.0
